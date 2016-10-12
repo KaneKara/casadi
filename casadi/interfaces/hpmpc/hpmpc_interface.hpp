@@ -30,14 +30,17 @@
 #include "casadi/core/function/linsol.hpp"
 #include <casadi/interfaces/hpmpc/casadi_conic_hpmpc_export.h>
 
-#include <target.h>
-extern "C" {
-#include <c_interface.h>
-}
 /** \defgroup plugin_Conic_hpmpc
 Interface to QPOases Solver for quadratic programming
 
 */
+
+#ifndef HPMPC_DLOPEN
+#include <target.h>
+extern "C" {
+#include <c_interface.h>
+}
+#endif
 
 /** \pluginsection{Conic,hpmpc} */
 
@@ -48,24 +51,24 @@ namespace casadi {
   class HpmpcInterface;
 
   struct CASADI_CONIC_HPMPC_EXPORT HpmpcMemory {
-			
-	  std::vector<double> A, B, b, Q, S, R, q, r, lb, ub, C, D, lg, ug;
-	  std::vector<double*> As, Bs, bs, Qs, Ss, Rs, qs, rs, lbs, ubs, Cs, Ds, lgs, ugs;
-	  
-	  std::vector<double> x, u, pi, lam;
-	  std::vector<double*> xs, us, pis, lams;
-	  
-	  std::vector<int> hidxb;
-	  std::vector<int*> hidxbs;
+
+    std::vector<double> A, B, b, Q, S, R, q, r, lb, ub, C, D, lg, ug;
+    std::vector<double*> As, Bs, bs, Qs, Ss, Rs, qs, rs, lbs, ubs, Cs, Ds, lgs, ugs;
+
+    std::vector<double> x, u, pi, lam;
+    std::vector<double*> xs, us, pis, lams;
+
+    std::vector<int> hidxb;
+    std::vector<int*> hidxbs;
 
     std::vector<int> nx;
     std::vector<int> nu;
     std::vector<int> ng;
     std::vector<int> nb;
     std::vector<double> stats;
-    
+
     std::vector<char> workspace;
-    
+
     /// Constructor
     HpmpcMemory();
 
@@ -127,6 +130,18 @@ namespace casadi {
     /// A documentation string
     static const std::string meta_doc;
 
+#ifdef HPMPC_DLOPEN
+    /// hpmpc_d_ip_ocp_hard_tv_work_space_size_bytes function
+    typedef int (*Work_size)(int N, int *nx, int *nu, int *nb, int **hidxb, int *ng, int N2);
+    /// fortran_order_d_ip_ocp_hard_tv function
+    typedef int (*Ocp_solve)(int *kk, int k_max, double mu0, double mu_tol,
+      int N, int *nx, int *nu, int *nb, int **hidxb, int *ng, int N2, int warm_start,
+      double **A, double **B, double **b, double **Q, double **S, double **R, double **q,
+      double **r, double **lb, double **ub, double **C, double **D, double **lg, double **ug,
+      double **x, double **u, double **pi, double **lam, /*double **t,*/
+      double *inf_norm_res, void *work0, double *stat);
+#endif
+
   protected:
 
     std::vector<int> nxs_;
@@ -139,7 +154,16 @@ namespace casadi {
     double mu0_; // max element in cost function as estimate of max multiplier
     int max_iter_; // maximum number of iterations
     double tol_; // tolerance in the duality measure
-    
+
+    std::string blasfeo_target_;
+    std::string target_;
+
+#ifdef HPMPC_DLOPEN
+    Work_size hpmpc_d_ip_ocp_hard_tv_work_space_size_bytes;
+    Ocp_solve fortran_order_d_ip_ocp_hard_tv;
+#endif
+
+
   };
 
 } // namespace casadi

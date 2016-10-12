@@ -23,8 +23,9 @@
 #
 from casadi import *
 
+inf = 100
 T = 10. # Time horizon
-N = 20 # number of control intervals
+N = 4 # number of control intervals
 
 # Declare model variables
 x1 = MX.sym('x1')
@@ -33,40 +34,16 @@ x = vertcat(x1, x2)
 u = MX.sym('u')
 
 # Model equations
-xdot = vertcat((1-x2**2)*x1 - x2 + u, x1)
+xdot = vertcat(0.6*x1 - 1.11*x2 + 0.3*u-0.03, 0.7*x1+0.01)
 
 # Objective term
-L = x1**2 + x2**2 + u**2
+L = x1**2 + 3*x2**2 + 7*u**2 -0.4*x1*x2-0.3*x1*u+u-x1-2*x2
 
-# Formulate discrete time dynamics
-if False:
-   # CVODES from the SUNDIALS suite
-   dae = {'x':x, 'p':u, 'ode':xdot, 'quad':L}
-   opts = {'tf':T/N}
-   F = integrator('F', 'cvodes', dae, opts)
-else:
-   # Fixed step Runge-Kutta 4 integrator
-   M = 4 # RK4 steps per interval
-   DT = T/N/M
-   f = Function('f', [x, u], [xdot, L])
-   X0 = MX.sym('X0', 2)
-   U = MX.sym('U')
-   X = X0
-   Q = 0
-   for j in range(M):
-       k1, k1_q = f(X, U)
-       k2, k2_q = f(X + DT/2 * k1, U)
-       k3, k3_q = f(X + DT/2 * k2, U)
-       k4, k4_q = f(X + DT * k3, U)
-       X=X+DT/6*(k1 +2*k2 +2*k3 +k4)
-       Q = Q + DT/6*(k1_q + 2*k2_q + 2*k3_q + k4_q)
-   F = Function('F', [X0, U], [X, Q],['x0','p'],['xf','qf'])
+# Fixed step Runge-Kutta 4 integrator
+F = Function('F', [x, u], [x + xdot, L])
 
-# Evaluate at a test point
-Fk = F(x0=[0.2,0.3],p=0.4)
-print(Fk['xf'])
-print(Fk['qf'])
-
+J = F.jacobian()
+print J()
 # Start with an empty NLP
 w=[]
 w0 = []
@@ -77,61 +54,56 @@ g=[]
 lbg = []
 ubg = []
 
-# "Lift" initial conditions
-X0 = MX.sym('X0', 2)
-w += [X0]
-lbw += [0, 1]
-ubw += [0, 1]
-w0 += [0, 1]
+Xs = SX.sym('X', 2, 1, N+1)
+Us = SX.sym('U', 1, 1, N+1)
 
-# Formulate the NLP
-Xk = MX([0, 1])
 for k in range(N):
-    # New NLP variable for the control
-    Uk = MX.sym('U_' + str(k))
-    w   += [Uk]
-    lbw += [-1]
-    ubw += [1]
+    w += [Us[k]]
+    lbw += [-5]
+    ubw += [5]
     w0  += [0]
+    w += [Xs[k]]
+      
+    if k==0:
+      #lbw += [0, 1]
+      #ubw += [0, 1]
+      lbw += [-inf, -inf]
+      ubw += [inf, inf]
+      w0 += [0, 1]
+    else:
+      lbw += [-inf, -inf]
+      ubw += [  inf,  inf]
+      w0  += [4, 1]
 
-    # Integrate till the end of the interval
-    Fk = F(x0=Xk, p=Uk)
-    Xk_end = Fk['xf']
-    J=J+Fk['qf']
-
-    # New NLP variable for state at end of interval
-    Xk = MX.sym('X_' + str(k+1), 2)
-    w   += [Xk]
-    lbw += [-0.25, -inf]
-    ubw += [  inf,  inf]
-    w0  += [0, 0]
-
+    xplus, l = F(Xs[k],Us[k])
+    J+= l
     # Add equality constraint
-    g   += [Xk_end-Xk]
+    g   += [xplus-Xs[k+1]]
     lbg += [0, 0]
     ubg += [0, 0]
 
+J+= mtimes(Xs[-1].T,Xs[-1])+0.1*Xs[-1][0]*Xs[-1][1]+3+0.03*Xs[-1][0]
+
+w += [Xs[-1]]
+lbw += [-0.25, -inf]
+ubw += [  inf,  inf]
+w0  += [4, 1]
+      
 # Create an NLP solver
 prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)}
-solver = nlpsol('solver', 'ipopt', prob);
+
+
+J = Function("J",[prob["x"]],[jacobian(prob["g"],prob["x"])])
+J(w0).print_dense()
+#solver = qpsol('solver', 'qpoases', prob)
+solver = qpsol('solver', 'hpmpc', prob,{"N":N,"nx":[2]*(N+1),"nu":[1]*N,"ng":[0]*(N+1)})
+
+#[2.12347, 0, 1, 4.68448, -0.50296, 1.01, 4.1949, -0.550493, 0.667928, 2.60331, -0.393719, 0.292583, 1.0789, -0.203723, 0.0269795, 0.083636, -0.0622339, -0.105627, -0.365252, 0.0127622, -0.13919, -0.44035, 0.0353452, -0.120257, -0.336076, 0.0279325, -0.0855153, -0.191927, 0.0087912, -0.0559625, -0.0787218, -0.0113937, -0.0398086, -0.015449, -0.0276589, -0.0377843, 0.00674384, -0.0369485, -0.0471455, 0.00541802, -0.0347629, -0.0630095, -0.00411427, -0.0140548, -0.0773435, -0.0129435, 0.0321294, -0.0771818, -0.0186908, 0.103196, -0.0446912, -0.023901, 0.179113, 0.0375458, -0.0337928, 0.207735, 0.172925, -0.0533645, 0.100292, 0.32834, -0.25, 0.408544]
+
 
 # Solve the NLP
 sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
-w_opt = sol['x'].full().flatten()
+print sol['x']
 
-# Plot the solution
-x1_opt = w_opt[0::3]
-x2_opt = w_opt[1::3]
-u_opt = w_opt[2::3]
 
-tgrid = [T/N*k for k in range(N+1)]
-import matplotlib.pyplot as plt
-plt.figure(1)
-plt.clf()
-plt.plot(tgrid, x1_opt, '--')
-plt.plot(tgrid, x2_opt, '-')
-plt.step(tgrid, vertcat(DM.nan(1), u_opt), '-.')
-plt.xlabel('t')
-plt.legend(['x1','x2','u'])
-plt.grid()
-plt.show()
+

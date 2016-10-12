@@ -7,3 +7,15 @@ casadi_plugin(Conic hpmpc
   hpmpc_interface_meta.cpp)
 
 casadi_plugin_link_libraries(Conic hpmpc ${HPMPC_LIBRARIES} ${HPMPC_LIBRARIES})
+
+if(HPMPC_DLOPEN)
+message("ookaay")
+add_definitions(-DHPMPC_DLOPEN)
+endif()
+
+if(BLASFEO_DLOPEN)
+message("ookaay")
+add_definitions(-DBLASFEO_DLOPEN)
+endif()
+
+casadi_plugin_link_libraries(Conic hpmpc ${HPMPC_LIBRARIES} ${HPMPC_LIBRARIES})

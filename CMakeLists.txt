@@ -67,9 +67,9 @@ option(WITH_NO_QPOASES_BANNER "Add -D__NO_COPYRIGHT__ to qpOASES definitions" OF
 option(WITH_BLOCKSQP "Compile the interface to blockSQP (the source code for blockSQP is included)" ON)
 option(WITH_BUILD_DSDP "Compile the the included source code for DSDP" ON)
 option(WITH_DSDP "Compile the interface to DSDP" ON)
-option(WITH_BUILD_HPMPC "Compile the the included source code for HPMPC" OFF)
+option(WITH_BUILD_HPMPC "Compile the the included source code for HPMPC" ON)
 option(WITH_HPMPC "Compile the interface to HPMPC" ON)
-option(WITH_BUILD_BLASFEO "Compile the the included source code for BLASFEO" OFF)
+option(WITH_BUILD_BLASFEO "Compile the the included source code for BLASFEO" ON)
 option(WITH_BLASFEO "Compile the interface to BLASFEO" ON)
 option(WITH_MOSEK "Compile the interface to MOSEK" OFF)
 option(WITH_ECOS "Compile the interface to ECOS" OFF)
@@ -428,21 +428,31 @@ add_feature_info(csparse-interface CSPARSE_FOUND "Interface to the sparse direct
 # BLASFEO
 if(WITH_BLASFEO)
   if(WITH_BUILD_BLASFEO)
-    # build the included blasfeo
+    set(BLASFEO_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/external_packages/blasfeo/src/include)
+    set(BLASFEO_LIBRARIES)
+    set(BLASFEO_DLOPEN ON)
+    set(BLASFEO_FOUND ON)
+    message("hookaay")
   else()
     # try to find system blasfeo
     find_package(BLASFEO)
+    set(BLASFEO_DLOPEN OFF)
   endif()
 endif()
 add_feature_info(blasfeo-interface BLASFEO_FOUND "Interface to blasfeo.")
 
 # HPMPC
-if(WITH_BLASFEO AND BLASFEO_FOUND)
+if(WITH_HPMPC AND BLASFEO_FOUND)
   if(WITH_BUILD_HPMPC)
-    # build the included blasfeo
+    set(HPMPC_INCLUDE_DIR ${CMAKE_SOURCE_DIR}/external_packages/hpmpc/src/include)
+    set(HPMPC_LIBRARIES)
+    set(HPMPC_DLOPEN ON)
+    set(HPMPC_FOUND ON)
+    message("hookaay")
   else()
     # try to find system hpmpc
     find_package(HPMPC)
+    set(HPMPC_DLOPEN OFF)
   endif()
 endif()
 add_feature_info(hpmpc-interface HPMPC_FOUND "Interface to hpmpc.")
