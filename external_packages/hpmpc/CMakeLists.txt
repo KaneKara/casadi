@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8.6)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../blasfeo/src/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/dummy_include)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/dummy_include/foo/bar)
 casadi_external_library(casadi_hpmpc_X64_AVX_GENERIC src/auxiliary/d_aux_lib4.c
 src/auxiliary/d_aux_extern_depend_lib4.c
 src/auxiliary/i_aux.c
@@ -31,7 +32,7 @@ src/mpc_solvers/avx/d_res_ip_res_hard.c
 src/interfaces/c/c_interface_work_space.c
 src/interfaces/c/c_order_interface.c
 src/interfaces/c/fortran_order_interface.c)
-SET_TARGET_PROPERTIES(casadi_hpmpc_X64_AVX_GENERIC PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_GENERIC -O2 -fPIC -DBLASFEO -m64 -mavx -DTARGET_X64_AVX")
+SET_TARGET_PROPERTIES(casadi_hpmpc_X64_AVX_GENERIC PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_GENERIC -DTARGET_X64_AVX -O2 -fPIC -DBLASFEO -m64 -mavx -DTARGET_X64_AVX")
 
 casadi_external_library(casadi_hpmpc_X64_AVX2_X64_INTEL_HASWELL src/auxiliary/d_aux_lib4.c
 src/auxiliary/d_aux_extern_depend_lib4.c
@@ -63,7 +64,7 @@ src/mpc_solvers/avx/d_res_ip_res_hard.c
 src/interfaces/c/c_interface_work_space.c
 src/interfaces/c/c_order_interface.c
 src/interfaces/c/fortran_order_interface.c)
-SET_TARGET_PROPERTIES(casadi_hpmpc_X64_AVX2_X64_INTEL_HASWELL PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_X64_INTEL_HASWELL -O2 -fPIC -DBLASFEO -m64 -mavx2 -mfma -DTARGET_X64_AVX2")
+SET_TARGET_PROPERTIES(casadi_hpmpc_X64_AVX2_X64_INTEL_HASWELL PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_X64_INTEL_HASWELL -DTARGET_X64_AVX2 -O2 -fPIC -DBLASFEO -m64 -mavx2 -mfma -DTARGET_X64_AVX2")
 
 casadi_external_library(casadi_hpmpc_X64_AVX_X64_INTEL_SANDY_BRIDGE src/auxiliary/d_aux_lib4.c
 src/auxiliary/d_aux_extern_depend_lib4.c
@@ -95,7 +96,7 @@ src/mpc_solvers/avx/d_res_ip_res_hard.c
 src/interfaces/c/c_interface_work_space.c
 src/interfaces/c/c_order_interface.c
 src/interfaces/c/fortran_order_interface.c)
-SET_TARGET_PROPERTIES(casadi_hpmpc_X64_AVX_X64_INTEL_SANDY_BRIDGE PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_X64_INTEL_SANDY_BRIDGE -O2 -fPIC -DBLASFEO -m64 -mavx -DTARGET_X64_AVX")
+SET_TARGET_PROPERTIES(casadi_hpmpc_X64_AVX_X64_INTEL_SANDY_BRIDGE PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_X64_INTEL_SANDY_BRIDGE -DTARGET_X64_AVX -O2 -fPIC -DBLASFEO -m64 -mavx -DTARGET_X64_AVX")
 
 casadi_external_library(casadi_hpmpc_X64_SSE3_X64_INTEL_CORE src/auxiliary/d_aux_lib4.c
 src/auxiliary/d_aux_extern_depend_lib4.c
@@ -127,7 +128,7 @@ src/mpc_solvers/c99/d_res_ip_res_hard.c
 src/interfaces/c/c_interface_work_space.c
 src/interfaces/c/c_order_interface.c
 src/interfaces/c/fortran_order_interface.c)
-SET_TARGET_PROPERTIES(casadi_hpmpc_X64_SSE3_X64_INTEL_CORE PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_X64_INTEL_CORE -O2 -fPIC -DBLASFEO -m64 -msse3 -DTARGET_X64_SSE3")
+SET_TARGET_PROPERTIES(casadi_hpmpc_X64_SSE3_X64_INTEL_CORE PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_X64_INTEL_CORE -DTARGET_X64_SSE3 -O2 -fPIC -DBLASFEO -m64 -msse3 -DTARGET_X64_SSE3")
 
 casadi_external_library(casadi_hpmpc_X64_SSE3_X64_AMD_BULLDOZER src/auxiliary/d_aux_lib4.c
 src/auxiliary/d_aux_extern_depend_lib4.c
@@ -159,7 +160,7 @@ src/mpc_solvers/c99/d_res_ip_res_hard.c
 src/interfaces/c/c_interface_work_space.c
 src/interfaces/c/c_order_interface.c
 src/interfaces/c/fortran_order_interface.c)
-SET_TARGET_PROPERTIES(casadi_hpmpc_X64_SSE3_X64_AMD_BULLDOZER PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_X64_AMD_BULLDOZER -O2 -fPIC -DBLASFEO -m64 -msse3 -DTARGET_X64_SSE3")
+SET_TARGET_PROPERTIES(casadi_hpmpc_X64_SSE3_X64_AMD_BULLDOZER PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_X64_AMD_BULLDOZER -DTARGET_X64_SSE3 -O2 -fPIC -DBLASFEO -m64 -msse3 -DTARGET_X64_SSE3")
 
 casadi_external_library(casadi_hpmpc_C99_4X4_GENERIC src/auxiliary/d_aux_lib4.c
 src/auxiliary/d_aux_extern_depend_lib4.c
@@ -191,7 +192,7 @@ src/mpc_solvers/c99/d_res_ip_res_hard.c
 src/interfaces/c/c_interface_work_space.c
 src/interfaces/c/c_order_interface.c
 src/interfaces/c/fortran_order_interface.c)
-SET_TARGET_PROPERTIES(casadi_hpmpc_C99_4X4_GENERIC PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_GENERIC -O2 -fPIC -DBLASFEO -march=native -DTARGET_C99_4X4")
+SET_TARGET_PROPERTIES(casadi_hpmpc_C99_4X4_GENERIC PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_GENERIC -DTARGET_C99_4X4 -O2 -fPIC -DBLASFEO -march=native -DTARGET_C99_4X4")
 
 casadi_external_library(casadi_hpmpc_C99_4X4_PREFETCH_GENERIC src/auxiliary/d_aux_lib4.c
 src/auxiliary/d_aux_extern_depend_lib4.c
@@ -223,5 +224,5 @@ src/mpc_solvers/c99/d_res_ip_res_hard.c
 src/interfaces/c/c_interface_work_space.c
 src/interfaces/c/c_order_interface.c
 src/interfaces/c/fortran_order_interface.c)
-SET_TARGET_PROPERTIES(casadi_hpmpc_C99_4X4_PREFETCH_GENERIC PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_GENERIC -O2 -fPIC -DBLASFEO -march=native -DTARGET_C99_4X4_PREFETCH")
+SET_TARGET_PROPERTIES(casadi_hpmpc_C99_4X4_PREFETCH_GENERIC PROPERTIES COMPILE_FLAGS "-DLA_BLASFEO -DTARGET_GENERIC -DTARGET_C99_4X4_PREFETCH -O2 -fPIC -DBLASFEO -march=native -DTARGET_C99_4X4_PREFETCH")
 

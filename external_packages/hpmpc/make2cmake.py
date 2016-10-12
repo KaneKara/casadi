@@ -53,6 +53,7 @@ with file('CMakeLists.txt','w') as f:
   f.write("cmake_minimum_required(VERSION 2.8.6)\n")
   f.write("include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../blasfeo/src/include)\n")
   f.write("include_directories(${CMAKE_CURRENT_SOURCE_DIR}/dummy_include)\n")
+  f.write("include_directories(${CMAKE_CURRENT_SOURCE_DIR}/dummy_include/foo/bar)\n")
   #f.write("include_directories(/opt/blasfeo/include)\n")
   
   for t,blasfeo_target in combinations:
@@ -61,5 +62,5 @@ with file('CMakeLists.txt','w') as f:
     libname = "casadi_hpmpc_%s_%s" % (t,blasfeo_target)
     
     f.write("casadi_external_library(%s %s)\n" % (libname, "\n".join([ os.path.join(pwd,cfile) for cfile, pwd, _ in data])))
-    f.write("SET_TARGET_PROPERTIES(%s PROPERTIES COMPILE_FLAGS \"-DLA_BLASFEO -DTARGET_%s %s\")\n\n" % (libname, blasfeo_target, " ".join(data[0][2])))
+    f.write("SET_TARGET_PROPERTIES(%s PROPERTIES COMPILE_FLAGS \"-DLA_BLASFEO -DTARGET_%s -DTARGET_%s %s\")\n\n" % (libname, blasfeo_target,t , " ".join(data[0][2])))
 
