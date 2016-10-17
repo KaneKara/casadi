@@ -31,64 +31,11 @@
 using namespace casadi;
 using namespace std;
 
-class MyCallback : public Callback {
- private:
-   // Data members
-  
- public:
-   // Creator function, creates an owning reference
-   static Function create(const std::string& name, const Dict& opts=Dict()) {
-     return Callback::create(name, new MyCallback(), opts);
-   }
 
-   // Initialize the object
-   virtual void init() {
-     std::cout << "initializing object" << std::endl;
-   }
-
-   // Number of inputs and outputs
-   virtual int get_n_in() { return 2;}
-   virtual int get_n_out() { return 2;}
-
-   // Evaluate numerically
-   virtual std::vector<DM> eval(std::vector<DM>& arg) {
-    double x = arg.at(0).scalar();
-    double y = arg.at(1).scalar();
-    return {x*2,y*2};
-   }
-   
-   virtual bool has_jacobian() const { return true; }
-   virtual Function get_jacobian(const std::string& name, const Dict& opts) {
-    SX x = SX::sym("x");
-    SX y = SX::sym("y");
-    return Function('f',{x,y},{DM::zeros(2,2)});
-   }
-
- };
 
 int main()
 {
 
-	
-	MX X = MX::sym("X",2,1);
-
-  Function f = MyCallback::create("f");
-  vector<MX> arg={X[0],X[1]};
-  std::vector<MX> res = f(arg);
-  MX driveSpline=0.01*(pow(X[0]-res.at(0),2)+pow(X[1]-res.at(0),2));
-  MX J = driveSpline;
-
-	// NLP 
-	MXDict nlp = {{"x", X}, {"f", J}};
-
-	// Set options
-	Dict opts;
-	opts["ipopt.tol"] = 1e-5;
-	opts["ipopt.max_iter"] = 200;
-	//opts["ipopt.linear_solver"] = "ma27";
-
-	// Create an NLP solver and buffers
-	Function solver = nlpsol("nlpsol", "ipopt", nlp, opts);
 
 
 }
