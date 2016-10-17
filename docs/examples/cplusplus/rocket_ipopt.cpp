@@ -31,131 +31,64 @@
 using namespace casadi;
 using namespace std;
 
-int main(){
-  cout << "program started" << endl;
+class MyCallback : public Callback {
+ private:
+   // Data members
+  
+ public:
+   // Creator function, creates an owning reference
+   static Function create(const std::string& name, const Dict& opts=Dict()) {
+     return Callback::create(name, new MyCallback(), opts);
+   }
 
-  // Dimensions
-  int nu = 20;  // Number of control segments
-  int nj = 100; // Number of integration steps per control segment
+   // Initialize the object
+   virtual void init() {
+     std::cout << "initializing object" << std::endl;
+   }
 
-  // optimization variable
-  SX u = SX::sym("u", nu); // control
+   // Number of inputs and outputs
+   virtual int get_n_in() { return 2;}
+   virtual int get_n_out() { return 2;}
 
-  SX s_0 = 0; // initial position
-  SX v_0 = 0; // initial speed
-  SX m_0 = 1; // initial mass
+   // Evaluate numerically
+   virtual std::vector<DM> eval(std::vector<DM>& arg) {
+    double x = arg.at(0).scalar();
+    double y = arg.at(1).scalar();
+    return {x*2,y*2};
+   }
+   
+   virtual bool has_jacobian() const { return true; }
+   virtual Function get_jacobian(const std::string& name, const Dict& opts) {
+    SX x = SX::sym("x");
+    SX y = SX::sym("y");
+    return Function('f',{x,y},{DM::zeros(2,2)});
+   }
 
-  SX dt = 10.0/(nj*nu); // time step
-  SX alpha = 0.05; // friction
-  SX beta = 0.1; // fuel consumption rate
+ };
 
-  // Trajectory
-  vector<SX> s_k, v_k, m_k;
+int main()
+{
 
-  // Integrate over the interval with Euler forward
-  SX s = s_0, v = v_0, m = m_0;
-  for(int k=0; k<nu; ++k){
-    for(int j=0; j<nj; ++j){
-      s += dt*v;
-      v += dt / m * (u(k)- alpha * v*v);
-      m += -dt * beta*u(k)*u(k);
-    }
-    s_k.push_back(s);
-    v_k.push_back(v);
-    m_k.push_back(m);
-  }
-  SX s_all=vertcat(s_k), v_all=vertcat(v_k), m_all=vertcat(m_k);
+	
+	MX X = MX::sym("X",2,1);
 
-  // Objective function
-  SX f = dot(u, u);
+  Function f = MyCallback::create("f");
+  vector<MX> arg={X[0],X[1]};
+  std::vector<MX> res = f(arg);
+  MX driveSpline=0.01*(pow(X[0]-res.at(0),2)+pow(X[1]-res.at(0),2));
+  MX J = driveSpline;
 
-  // Terminal constraints
-  SX g = vertcat(s, v, v_all);
+	// NLP 
+	MXDict nlp = {{"x", X}, {"f", J}};
 
-  // Create the NLP
-  SXDict nlp = {{"x", u}, {"f", f}, {"g", g}};
+	// Set options
+	Dict opts;
+	opts["ipopt.tol"] = 1e-5;
+	opts["ipopt.max_iter"] = 200;
+	//opts["ipopt.linear_solver"] = "ma27";
 
-  // Allocate an NLP solver and buffers
-  Function solver = nlpsol("solver", "ipopt", nlp);
+	// Create an NLP solver and buffers
+	Function solver = nlpsol("nlpsol", "ipopt", nlp, opts);
 
-  // Bounds on g
-  vector<double> gmin = {10, 0};
-  vector<double> gmax = {10, 0};
-  gmin.resize(2+nu, -numeric_limits<double>::infinity());
-  gmax.resize(2+nu, 1.1);
 
-  // Solve the problem
-  DMDict arg = {{"lbx", -10},
-                     {"ubx", 10},
-                     {"x0", 0.4},
-                     {"lbg", gmin},
-                     {"ubg", gmax}};
-  DMDict res = solver(arg);
-
-  // Print the optimal cost
-  double cost(res.at("f"));
-  cout << "optimal cost: " << cost << endl;
-
-  // Print the optimal solution
-  vector<double> uopt(res.at("x"));
-  cout << "optimal control: " << uopt << endl;
-
-  // Get the state trajectory
-  Function xfcn("xfcn", {u}, {s_all, v_all, m_all});
-  vector<double> sopt, vopt, mopt;
-  xfcn({uopt}, {&sopt, &vopt, &mopt});
-  cout << "position: " << sopt << endl;
-  cout << "velocity: " << vopt << endl;
-  cout << "mass:     " << mopt << endl;
-
-  // Create Matlab script to plot the solution
-  ofstream file;
-  string filename = "rocket_ipopt_results.m";
-  file.open(filename.c_str());
-  file << "% Results file from " __FILE__ << endl;
-  file << "% Generated " __DATE__ " at " __TIME__ << endl;
-  file << endl;
-  file << "cost = " << cost << ";" << endl;
-  file << "u = " << uopt << ";" << endl;
-
-  // Save results to file
-  file << "t = linspace(0,10.0," << nu << ");"<< endl;
-  file << "s = " << sopt << ";" << endl;
-  file << "v = " << vopt << ";" << endl;
-  file << "m = " << mopt << ";" << endl;
-
-  // Finalize the results file
-  file << endl;
-  file << "% Plot the results" << endl;
-  file << "figure(1);" << endl;
-  file << "clf;" << endl << endl;
-
-  file << "subplot(2,2,1);" << endl;
-  file << "plot(t,s);" << endl;
-  file << "grid on;" << endl;
-  file << "xlabel('time [s]');" << endl;
-  file << "ylabel('position [m]');" << endl << endl;
-
-  file << "subplot(2,2,2);" << endl;
-  file << "plot(t,v);" << endl;
-  file << "grid on;" << endl;
-  file << "xlabel('time [s]');" << endl;
-  file << "ylabel('velocity [m/s]');" << endl << endl;
-
-  file << "subplot(2,2,3);" << endl;
-  file << "plot(t,m);" << endl;
-  file << "grid on;" << endl;
-  file << "xlabel('time [s]');" << endl;
-  file << "ylabel('mass [kg]');" << endl << endl;
-
-  file << "subplot(2,2,4);" << endl;
-  file << "plot(t,u);" << endl;
-  file << "grid on;" << endl;
-  file << "xlabel('time [s]');" << endl;
-  file << "ylabel('Thrust [kg m/s^2]');" << endl << endl;
-
-  file.close();
-  cout << "Results saved to \"" << filename << "\"" << endl;
-
-  return 0;
 }

@@ -61,6 +61,7 @@ using namespace casadi;
      DM f = sin(d*x);
      return {f};
    }
+   
  };
 
  int main() {

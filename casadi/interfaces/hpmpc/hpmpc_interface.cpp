@@ -28,6 +28,31 @@
 using namespace std;
 namespace casadi {
 
+#define DEBUGPRINT(VAR,NN,DIM)\
+  std::cout << #VAR "= [";\
+  for (int i=0;i<NN;++i) {\
+    for (int j=0;j<DIM;++j) {\
+      std::cout << get_ptr(m->VAR##s)[i][j] << ",";\
+    }\
+    std::cout << " ";\
+  }\
+  std::cout << "]" << std::endl << std::endl<< std::endl << std::endl;\
+  std::cout << #VAR " [";\
+  for (int i=0;i<30;++i) {\
+    std::cout << *(get_ptr(m->VAR)+i) << ",";\
+    std::cout << " ";\
+  }\
+  std::cout << "]" << std::endl<< std::endl<< std::endl << std::endl;
+  
+  /**std::cout << "]" << std::endl;\
+  std::cout << #VAR " [";\
+  for (int i=0;i<NN;++i) {\
+    for (int j=0;j<DIM;++j) {\
+      std::cout << (get_ptr(m->VAR##s)[i]+j) << ",";\
+    }\
+    std::cout << " ";\
+  }\*/
+  
   extern "C"
   int CASADI_CONIC_HPMPC_EXPORT
   casadi_register_conic_hpmpc(Conic::Plugin* plugin) {
@@ -174,73 +199,77 @@ namespace casadi {
   void HpmpcInterface::init_memory(void* mem) const {
     auto m = static_cast<HpmpcMemory*>(mem);
 
-    m->nx = nxs_;
+    m->nx = nxs_; m->nx.insert(m->nx.begin(), 0);
     m->nu = nus_; m->nu.push_back(0);
     m->ng = ngs_;
 
-    const std::vector<int>& nx = m->nx;
+    const int* nx = get_ptr(m->nx) + 1;
     const std::vector<int>& nu = m->nu;
     const std::vector<int>& ng = m->ng;
-
+    const std::vector<int>& nb = m->nb;
+    
     m->nb.resize(N_+1);
     int offset = 0;
-    for (int k=0;k<N_;++k) m->nb[k] = nx[k]+nu[k];
+    m->nb[0] = nu[0];
+    for (int k=1;k<N_;++k) m->nb[k] = nx[k]+nu[k];
     m->nb[N_] = nx[N_];
 
+
+
     for (int k=0;k<N_;++k) offset+=nx[k]*nx[k];
-    m->A.resize(offset);
+    m->A.resize(offset);m->A.reserve(offset+1);
     offset+=nx[N_]*nx[N_];
-    m->Q.resize(offset);
+    m->Q.resize(offset);m->Q.reserve(offset+1);
 
     offset = 0;
     for (int k=0;k<N_;++k) offset+=nx[k]*nu[k];
-    m->B.resize(offset);
-    m->S.resize(offset);
+    m->B.resize(offset);m->B.reserve(offset+1);
+    m->S.resize(offset);m->S.reserve(offset+1);
 
     offset = 0;
     for (int k=0;k<N_;++k) offset+=nu[k]*nu[k];
-    m->R.resize(offset);
+    m->R.resize(offset);m->R.reserve(offset+1);
 
     offset = 0;
     for (int k=0;k<N_;++k) offset+=nu[k]*ng[k];
-    m->D.resize(offset);
+    m->D.resize(offset);m->D.reserve(offset+1);
 
     offset = 0;
     for (int k=0;k<N_;++k) offset+=nx[k]*ng[k];
-    m->C.resize(offset);
+    m->C.resize(offset);m->C.reserve(offset+1);
 
     offset = nu[0];
     for (int k=1;k<N_;++k) offset+=nx[k]+nu[k];
     offset+=nx[N_];
-    m->lb.resize(offset);
-    m->ub.resize(offset);
+    m->lb.resize(offset);m->lb.reserve(offset+1);
+    m->ub.resize(offset);m->ub.reserve(offset+1);
 
     offset = 0;
     for (int k=0;k<N_;++k) offset+=nx[k];
-    m->b.resize(offset);
-    m->pi.resize(offset);
+    m->b.resize(offset);m->b.reserve(offset+1);
+    m->pi.resize(offset);m->pi.reserve(offset+1);
     offset+=nx[N_];
-    m->q.resize(offset);
-    m->x.resize(offset);
+    m->q.resize(offset);m->q.reserve(offset+1);
+    m->x.resize(offset);m->x.reserve(offset+1);
 
     offset = 0;
     for (int k=0;k<N_;++k) offset+=nu[k];
-    m->r.resize(offset);
-    m->u.resize(offset);
+    m->r.resize(offset);m->r.reserve(offset+1);
+    m->u.resize(offset);m->u.reserve(offset+1);
 
     offset = 0;
     for (int k=0;k<N_;++k) offset+=ng[k];
-    m->lg.resize(offset);
-    m->ug.resize(offset);
-    m->lam.resize(offset);
+    m->lg.resize(offset);m->lg.reserve(offset+1);
+    m->ug.resize(offset);m->ug.reserve(offset+1);
 
     offset = 0;
-    for (int k=0;k<N_+1;++k) offset+=m->nb[k];
-    m->hidxb.resize(offset);
+    for (int k=0;k<N_+1;++k) offset+=m->nx[k]+nu[k];
+    m->hidxb.resize(offset+10);m->hidxb.reserve(offset+1);
 
     offset = 0;
     for (int k=0;k<N_;++k) offset+=ng[k]+nx[k]+nu[k];
-    m->lam.resize(offset);
+    offset+=ng[N_]+nx[N_];
+    m->lam.resize(2*offset);m->lam.reserve(2*offset+1);
 
     m->As.resize(N_);
     m->Qs.resize(N_+1);
@@ -322,29 +351,35 @@ namespace casadi {
 
     m->lgs.resize(N_+1);
     m->ugs.resize(N_+1);
-    m->lams.resize(N_+1);
     offset = 0;
     for (int k=0;k<N_+1;++k) {
       m->lgs[k] = get_ptr(m->lg)+offset;
       m->ugs[k] = get_ptr(m->ug)+offset;
-      m->lams[k] = get_ptr(m->lam)+offset;
       offset+=ng[k];
     }
-
+    
+    m->lams.resize(N_+1);
+    offset = 0;
+    for (int k=0;k<N_+1;++k) {
+      m->lams[k] = get_ptr(m->lam)+offset;
+      offset+=2*(ng[k]+nb[k]);
+    }
+    
     m->hidxbs.resize(N_+1);
     offset = 0;
     for (int k=0;k<N_+1;++k) {
       m->hidxbs[k] = get_ptr(m->hidxb)+offset;
       for (int i=0;i<m->nb[k];++i) m->hidxbs[k][i] = i;
-      offset+=m->nb[k];
+      offset+=3;
+      std::cout << offset << std::endl;
     }
 
     int workspace_size = hpmpc_d_ip_ocp_hard_tv_work_space_size_bytes(
       N_, get_ptr(m->nx), get_ptr(m->nu), get_ptr(m->nb), get_ptr(m->hidxbs), get_ptr(m->ng), N_);
-    std::cout << "workspace" << workspace_size << std::endl;
     m->workspace.resize(workspace_size);
 
     m->stats.resize(max_iter_*5);
+
 
 
   }
@@ -353,7 +388,7 @@ namespace casadi {
   eval(void* mem, const double** arg, double** res, int* iw, double* w) const {
     auto m = static_cast<HpmpcMemory*>(mem);
 
-    const std::vector<int>& nx = m->nx;
+    const int* nx = get_ptr(m->nx) + 1;
     const std::vector<int>& nu = m->nu;
     const std::vector<int>& ng = m->ng;
     const std::vector<int>& nb = m->nb;
@@ -364,19 +399,19 @@ namespace casadi {
 
     DM debug(asp);
     std::copy(arg[CONIC_A], arg[CONIC_A]+debug.nnz(), debug.nonzeros().begin());
-    debug.print_dense();
+    //debug.print_dense();
 
     debug = DM(sparsity_in(CONIC_LBA));
     std::copy(arg[CONIC_LBA], arg[CONIC_LBA]+debug.nnz(), debug.nonzeros().begin());
-    debug.print_dense();
+    //debug.print_dense();
 
     debug = DM(sparsity_in(CONIC_LBA));
     std::copy(arg[CONIC_UBA], arg[CONIC_UBA]+debug.nnz(), debug.nonzeros().begin());
-    debug.print_dense();
+    //debug.print_dense();
 
     debug = DM(sparsity_in(CONIC_H));
     std::copy(arg[CONIC_H], arg[CONIC_H]+debug.nnz(), debug.nonzeros().begin());
-    debug.print_dense();
+    //debug.print_dense();
 
     int offset_col = 0;
     int offset_row = 0;
@@ -423,6 +458,8 @@ namespace casadi {
        S'Q'
            R S
            S'Q'
+           
+       Multiply by 2
     */
     colind = sparsity_in(CONIC_H).colind();
     row = sparsity_in(CONIC_H).row();
@@ -432,28 +469,28 @@ namespace casadi {
         for (int el=colind[offset+cc]; el<colind[offset+cc+1]; ++el) {
           int r = row[el];
           if (r<offset+nu[k])
-            m->Rs[k][nu[k]*cc+r-offset] = arg[CONIC_H][el];
+            m->Rs[k][nu[k]*cc+r-offset] = 0.5*arg[CONIC_H][el];
         }
       }
       for (int cc=0; cc<nx[k]; ++cc) {
         for (int el=colind[offset+cc+nu[k]]; el<colind[offset+cc+1+nu[k]]; ++el) {
           int r = row[el];
           if (row[el]<offset+nu[k])
-            m->Ss[k][nu[k]*cc+r-offset] = arg[CONIC_H][el];
+            m->Ss[k][nu[k]*cc+r-offset] = 0.5*arg[CONIC_H][el];
           else
-            m->Qs[k][nx[k]*cc+r-offset-nu[k]] = arg[CONIC_H][el];
+            m->Qs[k][nx[k]*cc+r-offset-nu[k]] = 0.5*arg[CONIC_H][el];
         }
       }
 
       offset += nx[k] + nu[k];
     }
 
-    for (int cc=0; cc<nx[N_]; ++cc) {
+    /**for (int cc=0; cc<nx[N_]; ++cc) {
       for (int el=colind[offset+cc]; el<colind[offset+cc+1]; ++el) {
         int r = row[el];
-        m->Qs[N_][nx[N_]*cc+r-offset] = arg[CONIC_H][el];
+        m->Qs[N_][nx[N_]*cc+r-offset] = 0.5*arg[CONIC_H][el];
       }
-    }
+    }*/
 
 
     /* Disassemble LBA/UBA input into:
@@ -473,6 +510,10 @@ namespace casadi {
       std::copy(arg[CONIC_UBA]+offset, arg[CONIC_UBA]+offset+ng[k], m->ugs[k]);
       offset+= ng[k];
     }
+  
+    
+    // Flip sign of b
+    for (int i=0;i<m->b.size();++i) m->b[i] = -m->b[i];
 
     /* Disassemble LBX/UBX input
     */
@@ -489,11 +530,12 @@ namespace casadi {
     offset = 0;
     for (int k=0;k<N_;++k) {
       std::copy(arg[CONIC_G]+offset, arg[CONIC_G]+offset+nu[k], m->rs[k]);
+      for (int i=0;i<nu[k];++i) m->rs[k][i] = 0.5*m->rs[k][i];
       offset+= nu[k];
-      std::copy(arg[CONIC_G]+offset, arg[CONIC_G]+offset+nx[k], m->qs[k]);
+      std::copy(arg[CONIC_G]+offset, arg[CONIC_G]+offset+nx[k], m->qs[k+1]);
+      for (int i=0;i<nx[k];++i) m->qs[k+1][i] = 0.5*m->qs[k+1][i];
       offset+= nx[k];
     }
-    std::copy(arg[CONIC_G]+offset, arg[CONIC_G]+offset+nx[N_], m->qs[N_]);
 
     /* Disassemble X0 into
       u
@@ -514,11 +556,11 @@ namespace casadi {
 
 
     /* Disassemble LAM_X0 into
-      u
-      x
+      pi
+      lam
 
-      u
-      x
+      pi
+      lam
 
     */
     offset = 0;
@@ -529,46 +571,85 @@ namespace casadi {
       offset+= ng[k];
     }
 
-
-
-
-
-    std::cout << m->A << std::endl;
-    std::cout << m->B << std::endl;
-    std::cout << m->C << std::endl;
-    std::cout << m->D << std::endl;
-
-
-    std::cout << "R" << m->R << std::endl;
-    std::cout << "S" << m->S << std::endl;
-    std::cout << "Q" << m->Q << std::endl;
-
-
-    std::cout << "b" << m->b << std::endl;
-
-    std::cout << "r" << m->r << std::endl;
-    std::cout << "q" << m->q << std::endl;
-
-
-    std::cout << "lb" << m->lb << std::endl;
-    std::cout << "ub" << m->ub << std::endl;
-
-    std::cout << "lg" << m->lg << std::endl;
-    std::cout << "ug" << m->ug << std::endl;
-
-    std::cout << "x" << m->x << std::endl;
-    std::cout << "u" << m->u << std::endl;
-
-    std::cout << "pi" << m->pi << std::endl;
-    std::cout << "lam" << m->lam << std::endl;
-
-    std::cout << "hidxb" << m->hidxb << std::endl;
-
     int kk = -1;
 
     std::vector<double> inf_norm_res(4);
 
-    std::cout << "tol_: " << tol_ << std::endl;
+    int N = N_;
+    
+  
+    Sparsity Asp  = Sparsity::dense(nx[0], nx[0]);
+    Sparsity Ssp  = Sparsity::dense(nu[0], nx[0]);
+    //Sparsity Csp  = Sparsity::dense(ng[0], nx[0]);
+    
+    // First entry of b, augment with A*x
+    casadi_mv(m->As[0],Asp,get_ptr(m->x),m->bs[0], 0);
+    casadi_mv(m->Ss[0],Ssp,get_ptr(m->x),m->rs[0], 0);
+    //std::transform(m->Cs[0],m->Cs[0]+ng[0]*nx[0],m->Cs[0], std::negate<double>());
+    //casadi_mv(m->Cs[0],Csp,m->lgs[0],m->lgs[0], 0);
+    //casadi_mv(m->Cs[0],Csp,m->ugs[0],m->ugs[0], 0);
+    
+    m->A.push_back(nan);
+    m->B.push_back(nan);
+    m->b.push_back(nan);
+    m->Q.push_back(nan);
+    m->S.push_back(nan);
+    m->R.push_back(nan);
+    m->q.push_back(nan);
+    m->r.push_back(nan);
+    m->lb.push_back(nan);
+    m->ub.push_back(nan);
+    m->C.push_back(nan);
+    m->D.push_back(nan);
+    m->lg.push_back(nan);
+    m->ug.push_back(nan);
+    m->x.push_back(nan);
+    m->u.push_back(nan);
+    m->pi.push_back(nan);
+    m->lam.push_back(nan);
+    m->stats.push_back(nan);
+    
+    
+    std::cout << "nx" << m->nx << std::endl;
+    std::cout << "nu" << m->nu << std::endl;
+    std::cout << "ng" << m->ng << std::endl;
+    std::cout << "nb" << m->nb << std::endl;
+
+    std::cout <<"work_space_size= " << m->workspace.size()  << std::endl;
+	  std::cout <<"kmax= " << max_iter_  << std::endl;
+	  std::cout <<"mu0= " << mu0_  << std::endl;
+	  std::cout <<"tol= " << tol_ << std::endl;
+	  std::cout <<"N= " << N_ << std::endl;
+	  std::cout <<"warm_start= " << warm_start_ << std::endl;
+  
+    DEBUGPRINT(hidxb,N+1,m->nb[i])  
+    DEBUGPRINT(A,N,nx[i]*nx[i])
+    DEBUGPRINT(B,N,nx[i]*m->nu[i])
+    DEBUGPRINT(C,N,m->ng[i]*nx[i])
+    DEBUGPRINT(D,N,m->ng[i]*m->nu[i])
+
+    DEBUGPRINT(R,N,m->nu[i]*m->nu[i])
+    DEBUGPRINT(S,N,m->nu[i]*nx[i])
+    DEBUGPRINT(Q,N+1,nx[i]*nx[i])
+
+    DEBUGPRINT(b,N,nx[i]) 
+    DEBUGPRINT(r,N,m->nu[i])
+    DEBUGPRINT(q,N+1,nx[i])
+    
+    DEBUGPRINT(lb,N+1,m->nb[i])
+    DEBUGPRINT(ub,N+1,m->nb[i])
+
+    DEBUGPRINT(lg,N+1,m->ng[i])
+    DEBUGPRINT(ug,N+1,m->ng[i])
+
+    DEBUGPRINT(x,N+1,nx[i])
+    DEBUGPRINT(u,N+1,m->nu[i])
+    
+    DEBUGPRINT(pi,N,nx[i])
+    DEBUGPRINT(lam,N+1,2*(m->nb[i]+m->ng[i]))
+
+
+    //	        fortran_order_d_ip_ocp_hard_tv(&kk, k_max, mu0, tol, N, nx_v, nu_v, nb_v, hidxb, ng_v, N2, warm_start, hA, hB, hb, hQ, hS, hR, hq, hr, hlb, hub, hC, hD, hlg, hug, hx, hu, hpi, hlam, /*ht,*/ inf_norm_res, work, stat);
 
     int ret = fortran_order_d_ip_ocp_hard_tv(&kk, max_iter_, mu0_, tol_,	N_, get_ptr(m->nx),
       get_ptr(m->nu), get_ptr(m->nb), get_ptr(m->hidxbs), get_ptr(m->ng), N_, warm_start_,
@@ -576,11 +657,15 @@ namespace casadi {
       get_ptr(m->Rs), get_ptr(m->qs), get_ptr(m->rs), get_ptr(m->lbs), get_ptr(m->ubs),
       get_ptr(m->Cs), get_ptr(m->Ds), get_ptr(m->lgs), get_ptr(m->ugs), get_ptr(m->xs),
       get_ptr(m->us), get_ptr(m->pis), get_ptr(m->lams), get_ptr(inf_norm_res),
-      get_ptr(m->workspace), get_ptr(m->stats));
+      (void*) get_ptr(m->workspace), get_ptr(m->stats));
 
+    DEBUGPRINT(x,N+1,nx[i])
+    DEBUGPRINT(u,N+1,m->nu[i])
     std::cout << "status: " << ret << std::endl;
 
-    std::cout << "tol_: " << inf_norm_res << std::endl;
+    std::cout << "res: " << inf_norm_res << std::endl;
+    
+    std::cout << "kk: " << kk << std::endl;
     offset = 0;
     for (int k=0;k<N_;++k) {
       std::copy(m->us[k], m->us[k]+nu[k], res[CONIC_X]+offset);
@@ -589,6 +674,8 @@ namespace casadi {
       offset+= nx[k];
     }
     std::copy(m->xs[N_], m->xs[N_]+nx[N_], res[CONIC_X]+offset);
+
+    std::cout << m->stats << std::endl;
 
 
     casadi_assert(flag_identity);
