@@ -77,7 +77,6 @@ class ConicTests(casadiTestCase):
     F = Function('F', [x, u], [x+xdot, L])
 
     J = F.jacobian()
-    print J()
     # Start with an empty NLP
     w=[]
     w0 = []
@@ -140,8 +139,6 @@ class ConicTests(casadiTestCase):
     sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
 
     self.checkarray(sol_ref["x"], sol["x"])
-    print sol["x"]
-    assert False
 
     
 if __name__ == '__main__':
