@@ -62,7 +62,7 @@ namespace casadi {
 
   struct CASADI_CONIC_HPMPC_EXPORT HpmpcMemory {
 
-    std::vector<double> A, B, b, Q, S, R, q, r, lb, ub, C, D, lg, ug;
+    std::vector<double> A, B, b, b2, Q, S, R, q, r, lb, ub, C, D, lg, ug;
     std::vector<double*> As, Bs, bs, Qs, Ss, Rs, qs, rs, lbs, ubs, Cs, Ds, lgs, ugs;
 
     std::vector<double> I;
@@ -164,14 +164,8 @@ namespace casadi {
     Sparsity C0sp_;
     Sparsity S0sp_;
 
-    Sparsity Asp_;
-    Sparsity Bsp_;
-    Sparsity Csp_;
-    Sparsity Dsp_;
-    Sparsity Isp_;
-    Sparsity Rsp_;
-    Sparsity Ssp_;
-    Sparsity Qsp_;
+    Sparsity Asp_, Bsp_, Csp_, Dsp_, Isp_, Rsp_, Ssp_, Qsp_, bsp_, lugsp_, usp_, xsp_;
+
 
     std::vector<int> nxs_;
     std::vector<int> nus_;

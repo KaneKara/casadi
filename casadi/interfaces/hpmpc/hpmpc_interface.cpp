@@ -202,6 +202,8 @@ namespace casadi {
       offset_r+= nx[k]+ng[k];
     }
 
+    C_blocks.push_back(std::make_tuple(offset_r, offset_c,      ng[N_], nx[N_]));
+
     Asp_ = blocksparsity(na_, nx_, A_blocks);
     Bsp_ = blocksparsity(na_, nx_, B_blocks);
     Csp_ = blocksparsity(na_, nx_, C_blocks);
@@ -240,22 +242,52 @@ namespace casadi {
       "HPMPC: specified structure of H does not correspond to what the interface can handle.");
     casadi_assert(total.nnz() == Rsp_.nnz() + 2*Ssp_.nnz() + Qsp_.nnz());
 
+    /* Disassemble LBA/UBA input into:
+       b
+       lg/ug
+
+       b
+       lg/ug
+    */
+    offset = 0;
+    std::vector< Block > b_blocks, lug_blocks;
+    for (int k=0;k<N_;++k) {
+      b_blocks.push_back(std::make_tuple(offset,         0, nx[k], 1));
+      lug_blocks.push_back(std::make_tuple(offset+nx[k], 0, ng[k], 1));
+      offset+= ng[k] + nx[k];
+    }
+    lug_blocks.push_back(std::make_tuple(offset, 0, ng[N_], 1));
+
+    bsp_ = blocksparsity(na_, 1, b_blocks);
+    lugsp_ = blocksparsity(na_, 1, lug_blocks);
+    total = bsp_ + lugsp_;
+    casadi_assert(total.nnz() == bsp_.nnz() + lugsp_.nnz());
+    casadi_assert(total.nnz() == na_);
+
+    /* Disassemble G/X0 input into:
+       r/u
+       q/x
+
+       r/u
+       q/x
+    */
+    offset = 0;
+    std::vector< Block > u_blocks, x_blocks;
+    for (int k=0;k<N_;++k) {
+      u_blocks.push_back(std::make_tuple(offset,       0, nu[k], 1));
+      x_blocks.push_back(std::make_tuple(offset+nu[k], 0, nx[k], 1));
+      offset+= nx[k] + nu[k];
+    }
+    x_blocks.push_back(std::make_tuple(offset, 0, nx[N_], 1));
+
+    usp_ = blocksparsity(nx_, 1, u_blocks);
+    xsp_ = blocksparsity(nx_, 1, x_blocks);
+    total = usp_ + xsp_;
+    casadi_assert(total.nnz() == usp_.nnz() + xsp_.nnz());
+    casadi_assert(total.nnz() == nx_);
+
   }
 
-  Sparsity HpmpcInterface::blocksparsity(int rows, int cols, const std::vector<Block>& b, bool eye) {
-    DM r(rows, cols);
-    for (auto && block : b) {
-      int offset_r, offset_c, rows, cols;
-      std::tie(offset_r, offset_c, rows, cols) = block;
-      if (eye) {
-        r(range(offset_r, offset_r+rows), range(offset_c, offset_c+cols)) = DM::eye(rows);
-        casadi_assert(rows==cols);
-      } else {
-        r(range(offset_r, offset_r+rows), range(offset_c, offset_c+cols)) = DM::zeros(rows, cols);
-      }
-    }
-    return r.sparsity();
-  }
 
   void HpmpcInterface::init_memory(void* mem) const {
     auto m = static_cast<HpmpcMemory*>(mem);
@@ -280,8 +312,17 @@ namespace casadi {
     m->C.resize(Csp_.nnz());
     m->D.resize(Dsp_.nnz());
     m->R.resize(Rsp_.nnz());
-    m->S.resize(Qsp_.nnz());
+    m->I.resize(Isp_.nnz());
+    m->S.resize(Ssp_.nnz());
     m->Q.resize(Qsp_.nnz());
+    m->b.resize(bsp_.nnz());
+    m->b2.resize(bsp_.nnz());
+    m->x.resize(xsp_.nnz());m->q.resize(xsp_.nnz());
+    m->u.resize(usp_.nnz());m->r.resize(usp_.nnz());
+    m->lg.resize(lugsp_.nnz());
+    m->ug.resize(lugsp_.nnz());
+
+    //m->lb.reserve(nx_);m->ub.reserve(nx_);
 
     offset = nu[0]+nx[0];
     for (int k=1;k<N_;++k) offset+=nx[k]+nu[k];
@@ -291,24 +332,7 @@ namespace casadi {
 
     offset = 0;
     for (int k=0;k<N_;++k) offset+=nx[k];
-    m->b.resize(offset);m->b.reserve(offset+1);
     m->pi.resize(offset);m->pi.reserve(offset+1);
-    offset+=nx[N_];
-    m->q.resize(offset);m->q.reserve(offset+1);
-    m->x.resize(offset);m->x.reserve(offset+1);
-    m->I.resize(offset, -1);
-
-    offset = 0;
-    for (int k=0;k<N_;++k) offset+=nu[k];
-    m->r.resize(offset);m->r.reserve(offset+1);
-    m->u.resize(offset);m->u.reserve(offset+1);
-
-    offset = 0;
-    for (int k=0;k<N_;++k) offset+=ng[k];
-    m->lg.resize(offset);m->lg.reserve(offset+1);
-    m->ug.resize(offset);m->ug.reserve(offset+1);
-
-    if (offset) casadi_warning("Untested: non-gap constraints.");
 
     offset = 0;
     for (int k=0;k<N_+1;++k) offset+=m->nx[k]+nu[k];
@@ -461,30 +485,17 @@ namespace casadi {
     casadi_project(arg[CONIC_H], sparsity_in(CONIC_H), get_ptr(m->Q), Qsp_, get_ptr(m->projvec));
 
     // The definition of HPMPC lacks a factor 2
-    std::transform(m->R.begin(), m->R.end(), m->R.begin(),
-      std::bind1st(std::multiplies<double>(), 0.5));
-    std::transform(m->S.begin(), m->S.end(), m->S.begin(),
-      std::bind1st(std::multiplies<double>(), 0.5));
-    std::transform(m->Q.begin(), m->Q.end(), m->Q.begin(),
-      std::bind1st(std::multiplies<double>(), 0.5));
+    for (int i=0;i<m->R.size();++i) m->R[i] = 0.5*m->R[i];
+    for (int i=0;i<m->S.size();++i) m->S[i] = 0.5*m->S[i];
+    for (int i=0;i<m->Q.size();++i) m->Q[i] = 0.5*m->Q[i];
 
-    /* Disassemble LBA/UBA input into:
-       b
-       lg/ug
 
-       b
-       lg/ug
-    */
-    int offset = 0;
-    for (int k=0;k<N_;++k) {
-      std::copy(arg[CONIC_LBA]+offset, arg[CONIC_LBA]+offset+nx[k], m->bs[k]);
-      casadi_assert(std::equal(arg[CONIC_LBA]+offset, arg[CONIC_LBA]+offset+nx[k],
-        arg[CONIC_UBA]+offset));
-      offset+= nx[k];
-      std::copy(arg[CONIC_LBA]+offset, arg[CONIC_LBA]+offset+ng[k], m->lgs[k]);
-      std::copy(arg[CONIC_UBA]+offset, arg[CONIC_UBA]+offset+ng[k], m->ugs[k]);
-      offset+= ng[k];
-    }
+    // Dissect LBA/UBA
+    casadi_project(arg[CONIC_LBA], sparsity_in(CONIC_LBA), get_ptr(m->b), bsp_, get_ptr(m->projvec));
+    casadi_project(arg[CONIC_UBA], sparsity_in(CONIC_UBA), get_ptr(m->b2), bsp_, get_ptr(m->projvec));
+    casadi_assert(std::equal(m->b.begin(), m->b.end(), m->b2.begin()));
+    casadi_project(arg[CONIC_LBA], sparsity_in(CONIC_LBA), get_ptr(m->lg), lugsp_, get_ptr(m->projvec));
+    casadi_project(arg[CONIC_UBA], sparsity_in(CONIC_UBA), get_ptr(m->ug), lugsp_, get_ptr(m->projvec));
 
     // Flip sign of b
     for (int i=0;i<m->b.size();++i) m->b[i] = -m->b[i];
@@ -499,39 +510,16 @@ namespace casadi {
     casadi_assert_message(checkbounds,
         "HPMPC solver requires equality constraints on the first state.");
 
-    /* Disassemble G input into:
-       r
-       q
+    // Dissect G
+    casadi_project(arg[CONIC_G], sparsity_in(CONIC_G), get_ptr(m->r), usp_, get_ptr(m->projvec));
+    casadi_project(arg[CONIC_G], sparsity_in(CONIC_G), get_ptr(m->q), xsp_, get_ptr(m->projvec));
+    // The definition of HPMPC lacks a factor 2
+    for (int i=0;i<m->r.size();++i) m->r[i] = 0.5*m->r[i];
+    for (int i=0;i<m->q.size();++i) m->q[i] = 0.5*m->q[i];
 
-       r
-       q
-    */
-    offset = 0;
-    for (int k=0;k<N_;++k) {
-      std::copy(arg[CONIC_G]+offset, arg[CONIC_G]+offset+nu[k], m->rs[k]);
-      for (int i=0;i<nu[k];++i) m->rs[k][i] = 0.5*m->rs[k][i];
-      offset+= nu[k];
-      std::copy(arg[CONIC_G]+offset, arg[CONIC_G]+offset+nx[k], m->qs[k]);
-      for (int i=0;i<nx[k];++i) m->qs[k][i] = 0.5*m->qs[k][i];
-      offset+= nx[k];
-    }
-
-    /* Disassemble X0 into
-      u
-      x
-
-      u
-      x
-
-    */
-    offset = 0;
-    for (int k=0;k<N_;++k) {
-      std::copy(arg[CONIC_X0]+offset, arg[CONIC_X0]+offset+nu[k], m->us[k]);
-      offset+= nu[k];
-      std::copy(arg[CONIC_X0]+offset, arg[CONIC_X0]+offset+nx[k], m->xs[k]);
-      offset+= nx[k];
-    }
-    std::copy(arg[CONIC_X0]+offset, arg[CONIC_X0]+offset+nx[N_], m->xs[N_]);
+    // Dissect X0
+    casadi_project(arg[CONIC_X0], sparsity_in(CONIC_X0), get_ptr(m->u), usp_, get_ptr(m->projvec));
+    casadi_project(arg[CONIC_X0], sparsity_in(CONIC_X0), get_ptr(m->x), xsp_, get_ptr(m->projvec));
 
     // Instead of expecting an initial state constraint,
     // HPMPC reads from x.
@@ -545,7 +533,7 @@ namespace casadi {
       lam
 
     */
-    offset = 0;
+    int offset = 0;
     for (int k=0;k<N_;++k) {
       std::copy(arg[CONIC_LAM_X0]+offset, arg[CONIC_LAM_X0]+offset+nx[k], m->pis[k]);
       offset+= nx[k];
@@ -596,6 +584,22 @@ namespace casadi {
 
   HpmpcMemory::~HpmpcMemory() {
 
+  }
+
+  Sparsity HpmpcInterface::blocksparsity(int rows, int cols, const std::vector<Block>& b,
+      bool eye) {
+    DM r(rows, cols);
+    for (auto && block : b) {
+      int offset_r, offset_c, rows, cols;
+      std::tie(offset_r, offset_c, rows, cols) = block;
+      if (eye) {
+        r(range(offset_r, offset_r+rows), range(offset_c, offset_c+cols)) = DM::eye(rows);
+        casadi_assert(rows==cols);
+      } else {
+        r(range(offset_r, offset_r+rows), range(offset_c, offset_c+cols)) = DM::zeros(rows, cols);
+      }
+    }
+    return r.sparsity();
   }
 
 } // namespace casadi

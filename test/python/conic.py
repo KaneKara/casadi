@@ -119,7 +119,10 @@ class ConicTests(casadiTestCase):
         ubg += [0, 0]
         lbg += [-0.5*k-0.1]
         ubg += [2]
-        
+    g   += [0.1*Xs[-1][1]]
+    lbg += [0.1]
+    ubg += [2]
+          
     J+= mtimes(Xs[-1].T,Xs[-1])
 
     w += [Xs[-1]]
