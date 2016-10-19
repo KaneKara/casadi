@@ -174,7 +174,7 @@ namespace casadi {
 
     A0sp_  = Sparsity::dense(nxs_[0], nxs_[0]);
     S0sp_  = Sparsity::dense(nus_[0], nus_[0]);
-
+    C0sp_  = Sparsity::dense(ngs_[0], nxs_[0]);
     // Check sparsity pattern of A, G
 
   }
@@ -556,6 +556,11 @@ namespace casadi {
     // First entry of b, augment with A*x
     casadi_mv(m->As[0], A0sp_, get_ptr(m->x), m->bs[0], 0);
     casadi_mv(m->Ss[0], S0sp_, get_ptr(m->x), m->rs[0], 0);
+
+    for (int i=0;i<nx[0]*ng[0];++i) *(m->Cs[0]+i) = - *(m->Cs[0]+i);
+    casadi_mv(m->Cs[0], C0sp_, get_ptr(m->x), m->lgs[0], 0);
+    casadi_mv(m->Cs[0], C0sp_, get_ptr(m->x), m->ugs[0], 0);
+    for (int i=0;i<nx[0]*ng[0];++i) *(m->Cs[0]+i) = - *(m->Cs[0]+i);
 
     int ret = fortran_order_d_ip_ocp_hard_tv(&kk, max_iter_, mu0_, tol_, N_, get_ptr(m->nx),
       get_ptr(m->nu), get_ptr(m->nb), get_ptr(m->hidxbs), get_ptr(m->ng), N_, warm_start_,

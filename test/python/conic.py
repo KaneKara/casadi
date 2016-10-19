@@ -101,10 +101,10 @@ class ConicTests(casadiTestCase):
           lbw += [0, 1]
           ubw += [0, 1]
           w0 += [0.3, 0.7]
-        elif k==3:
-          lbw += [0.5, 0.3]
-          ubw += [0.5, 0.3]
-          w0 += [0.5, 0.3]
+        elif k==2:
+          lbw += [0, -inf]
+          ubw += [0, inf]
+          w0 += [0, 0.3]
         else:
           lbw += [-inf, -inf]
           ubw += [  inf,  inf]
@@ -114,9 +114,12 @@ class ConicTests(casadiTestCase):
         J+= l
         # Add equality constraint
         g   += [xplus-Xs[k+1]]
+        g   += [0.1*Xs[k][1]-0.05*Us[k]]
         lbg += [0, 0]
         ubg += [0, 0]
-
+        lbg += [-0.5*k-0.1]
+        ubg += [2]
+        
     J+= mtimes(Xs[-1].T,Xs[-1])
 
     w += [Xs[-1]]
@@ -133,11 +136,12 @@ class ConicTests(casadiTestCase):
     
         
     solver_ref = qpsol('solver', 'qpoases', prob)
-    solver = qpsol('solver', 'hpmpc', prob,{"N":N,"nx":[2]*(N+1),"nu":[1]*N,"ng":[0]*(N+1),"tol":1e-12,"mu0":2,"max_iter":20})
+    solver = qpsol('solver', 'hpmpc', prob,{"N":N,"nx":[2]*(N+1),"nu":[1]*N,"ng":[1]*(N+1),"tol":1e-12,"mu0":2,"max_iter":20})
 
     sol_ref = solver_ref(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
     sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
 
+    print sol["x"]
     self.checkarray(sol_ref["x"], sol["x"])
 
     

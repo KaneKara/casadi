@@ -155,6 +155,7 @@ namespace casadi {
   protected:
 
     Sparsity A0sp_;
+    Sparsity C0sp_;
     Sparsity S0sp_;
 
     std::vector<int> nxs_;
