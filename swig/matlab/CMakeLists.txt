@@ -1,3 +1,11 @@
+set(MATLAB_LIBRARIES /home/jgillis/Downloads/matlabR2014b-win/bin/win64/libut.dll /home/jgillis/Downloads/matlabR2014b-win/bin/win64/libmex.dll /home/jgillis/Downloads/matlabR2014b-win/bin/win64/libmx.dll /home/jgillis/Downloads/matlabR2014b-win/bin/win64/libeng.dll)
+set(MATLAB_INCLUDE_DIR "/home/jgillis/Downloads/matlabR2014b-win/extern/include")
+set(MATLAB_EXTRA_CXXFLAGS "-D__STDC_UTF_16__")
+set(MATLAB_MEX_EXT "mexw64")
+set(MATLAB_LIBRARIES /home/jgillis/Downloads/matlabR2014b-win/bin/win64/libut.dll /home/jgillis/Downloads/matlabR2014b-win/bin/win64/libmex.dll /home/jgillis/Downloads/matlabR2014b-win/bin/win64/libmx.dll /home/jgillis/Downloads/matlabR2014b-win/bin/win64/libeng.dll)
+set(MATLAB_INCLUDE_DIR "/home/jgillis/Downloads/matlabR2014b-win/extern/include")
+set(MATLAB_EXTRA_CXXFLAGS "-D__STDC_UTF_16__")
+set(MATLAB_MEX_EXT "mexw64")
 cmake_minimum_required(VERSION 2.8.6)
 
 # Generate SWIG wrapper (for both MATLAB and Octave)
@@ -25,7 +33,6 @@ if (WITH_MATLAB)
   add_custom_target(matlab DEPENDS casadiMATLAB)
 
   # Find MATLAB
-  find_package(MATLAB REQUIRED)
 
   # Compile MEX file
   add_library(casadiMATLAB MODULE ${MEX_FILE})
