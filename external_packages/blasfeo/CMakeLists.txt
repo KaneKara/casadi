@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 2.8.6)
+if(WIN32)
+add_definitions(-DOS_WINDOWS)
+endif()
 casadi_external_library(casadi_blasfeo_X64_INTEL_HASWELL src/aux/d_aux_lib4.c
 src/aux/d_aux_extern_depend_lib4.c
 src/aux/s_aux_lib4.c
@@ -23,7 +26,7 @@ src/blas/d_blas1_lib4.c
 src/blas/s_blas3_lib4.c
 src/blas/s_lapack_lib4.c
 src/blas/s_blas2_lib4.c)
-set_target_properties(casadi_blasfeo_X64_INTEL_HASWELL PROPERTIES COMPILE_FLAGS "-O2 -fPIC -m64 -mavx2 -mfma -DTARGET_X64_INTEL_HASWELL -DLA_BLASFEO -DOS_LINUX -DREF_BLAS_OPENBLAS")
+set_target_properties(casadi_blasfeo_X64_INTEL_HASWELL PROPERTIES COMPILE_FLAGS "-O2 -fPIC -m64 -mavx2 -mfma -DTARGET_X64_INTEL_HASWELL -DLA_BLASFEO -DREF_BLAS_OPENBLAS")
 
 set_property(SOURCE src/kernel/avx2/kernel_dgemm_4x4_lib4.S PROPERTY LANGUAGE C)
 set_property(SOURCE src/kernel/avx2/kernel_dgemm_8x4_lib4.S PROPERTY LANGUAGE C)
@@ -55,7 +58,7 @@ src/blas/d_blas1_lib4.c
 src/blas/s_blas3_lib4.c
 src/blas/s_lapack_lib4.c
 src/blas/s_blas2_lib4.c)
-set_target_properties(casadi_blasfeo_X64_INTEL_SANDY_BRIDGE PROPERTIES COMPILE_FLAGS "-O2 -fPIC -m64 -mavx -DTARGET_X64_INTEL_SANDY_BRIDGE -DLA_BLASFEO -DOS_LINUX -DREF_BLAS_OPENBLAS")
+set_target_properties(casadi_blasfeo_X64_INTEL_SANDY_BRIDGE PROPERTIES COMPILE_FLAGS "-O2 -fPIC -m64 -mavx -DTARGET_X64_INTEL_SANDY_BRIDGE -DLA_BLASFEO -DREF_BLAS_OPENBLAS")
 
 set_property(SOURCE src/kernel/avx/kernel_dgemm_4x4_lib4.S PROPERTY LANGUAGE C)
 set_property(SOURCE src/kernel/avx/kernel_dgemm_8x4_lib4.S PROPERTY LANGUAGE C)
@@ -84,7 +87,7 @@ src/blas/d_blas1_lib4.c
 src/blas/s_blas3_lib4.c
 src/blas/s_lapack_lib4.c
 src/blas/s_blas2_lib4.c)
-set_target_properties(casadi_blasfeo_X64_INTEL_CORE PROPERTIES COMPILE_FLAGS "-O2 -fPIC -m64 -msse3 -DTARGET_X64_INTEL_CORE -DLA_BLASFEO -DOS_LINUX -DREF_BLAS_OPENBLAS")
+set_target_properties(casadi_blasfeo_X64_INTEL_CORE PROPERTIES COMPILE_FLAGS "-O2 -fPIC -m64 -msse3 -DTARGET_X64_INTEL_CORE -DLA_BLASFEO -DREF_BLAS_OPENBLAS")
 
 set_property(SOURCE src/kernel/sse3/kernel_dgemm_4x4_lib4.S PROPERTY LANGUAGE C)
 casadi_external_library(casadi_blasfeo_X64_AMD_BULLDOZER src/aux/d_aux_lib4.c
@@ -108,7 +111,7 @@ src/blas/d_blas1_lib4.c
 src/blas/s_blas3_lib4.c
 src/blas/s_lapack_lib4.c
 src/blas/s_blas2_lib4.c)
-set_target_properties(casadi_blasfeo_X64_AMD_BULLDOZER PROPERTIES COMPILE_FLAGS "-O2 -fPIC -m64 -mavx -mfma -DTARGET_X64_AMD_BULLDOZER -DLA_BLASFEO -DOS_LINUX -DREF_BLAS_OPENBLAS")
+set_target_properties(casadi_blasfeo_X64_AMD_BULLDOZER PROPERTIES COMPILE_FLAGS "-O2 -fPIC -m64 -mavx -mfma -DTARGET_X64_AMD_BULLDOZER -DLA_BLASFEO -DREF_BLAS_OPENBLAS")
 
 set_property(SOURCE src/kernel/fma/kernel_dgemm_4x4_lib4.S PROPERTY LANGUAGE C)
 casadi_external_library(casadi_blasfeo_GENERIC src/aux/d_aux_lib4.c
@@ -131,5 +134,5 @@ src/blas/d_blas1_lib4.c
 src/blas/s_blas3_lib4.c
 src/blas/s_lapack_lib4.c
 src/blas/s_blas2_lib4.c)
-set_target_properties(casadi_blasfeo_GENERIC PROPERTIES COMPILE_FLAGS "-O2 -fPIC -march=native -DTARGET_GENERIC -DLA_BLASFEO -DOS_LINUX -DREF_BLAS_OPENBLAS")
+set_target_properties(casadi_blasfeo_GENERIC PROPERTIES COMPILE_FLAGS "-O2 -fPIC -march=native -DTARGET_GENERIC -DLA_BLASFEO -DREF_BLAS_OPENBLAS")
 

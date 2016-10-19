@@ -1,4 +1,7 @@
 cmake_minimum_required(VERSION 2.8.6)
+if(WIN32)
+add_definitions(-DOS_WINDOWS)
+endif()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../blasfeo/src/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/dummy_include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/dummy_include/foo/bar)
