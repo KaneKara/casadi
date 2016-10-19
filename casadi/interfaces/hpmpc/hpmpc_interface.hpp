@@ -65,6 +65,7 @@ namespace casadi {
     std::vector<double> A, B, b, Q, S, R, q, r, lb, ub, C, D, lg, ug;
     std::vector<double*> As, Bs, bs, Qs, Ss, Rs, qs, rs, lbs, ubs, Cs, Ds, lgs, ugs;
 
+    std::vector<double> I;
     std::vector<double> x, u, pi, lam;
     std::vector<double*> xs, us, pis, lams;
 
@@ -78,6 +79,8 @@ namespace casadi {
     std::vector<double> stats;
 
     std::vector<char> workspace;
+
+    std::vector<double> projvec;
 
     /// Constructor
     HpmpcMemory();
@@ -154,9 +157,21 @@ namespace casadi {
 
   protected:
 
+    typedef std::tuple<int, int, int, int> Block;
+
+    static Sparsity blocksparsity(int rows, int cols, const std::vector<Block>& b, bool eye=false);
     Sparsity A0sp_;
     Sparsity C0sp_;
     Sparsity S0sp_;
+
+    Sparsity Asp_;
+    Sparsity Bsp_;
+    Sparsity Csp_;
+    Sparsity Dsp_;
+    Sparsity Isp_;
+    Sparsity Rsp_;
+    Sparsity Ssp_;
+    Sparsity Qsp_;
 
     std::vector<int> nxs_;
     std::vector<int> nus_;
