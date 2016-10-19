@@ -37,7 +37,7 @@ u = MX.sym('u')
 xdot = vertcat(x2, u)
 
 # Objective term
-L = x1**2 + x2**2 + u**2
+L = x1**2 + x2**2 + u**2 +x1#+ x1 #-0.4*x1*x2-0.3*x1*u+u-x1-2*x2 + -0.4*x1*x2 +0.3*x1*u  -0.1*x2*u
 
 # Fixed step Runge-Kutta 4 integrator
 F = Function('F', [x, u], [vertcat(x2+x1, u), L])
@@ -65,11 +65,9 @@ for k in range(N):
     w += [Xs[k]]
       
     if k==0:
-      #lbw += [0, 1]
-      #ubw += [0, 1]
-      lbw += [-inf, -inf]
-      ubw += [inf, inf]
-      w0 += [0, 1]
+      lbw += [0, 1]
+      ubw += [0, 1]
+      w0 += [0.5, 0.7]
     else:
       lbw += [-inf, -inf]
       ubw += [  inf,  inf]
@@ -95,7 +93,7 @@ prob = {'f': J, 'x': vertcat(*w), 'g': vertcat(*g)}
 
 J = Function("J",[prob["x"]],[jacobian(prob["g"],prob["x"])])
 J(w0).print_dense()
-#solver = qpsol('solver', 'qpoases', prob)
+solver_ref = qpsol('solver', 'qpoases', prob)
 solver = qpsol('solver', 'hpmpc', prob,{"N":N,"nx":[2]*(N+1),"nu":[1]*N,"ng":[0]*(N+1),"tol":1e-8,"mu0":2,"max_iter":20})
 
 #[2.12347, 0, 1, 4.68448, -0.50296, 1.01, 4.1949, -0.550493, 0.667928, 2.60331, -0.393719, 0.292583, 1.0789, -0.203723, 0.0269795, 0.083636, -0.0622339, -0.105627, -0.365252, 0.0127622, -0.13919, -0.44035, 0.0353452, -0.120257, -0.336076, 0.0279325, -0.0855153, -0.191927, 0.0087912, -0.0559625, -0.0787218, -0.0113937, -0.0398086, -0.015449, -0.0276589, -0.0377843, 0.00674384, -0.0369485, -0.0471455, 0.00541802, -0.0347629, -0.0630095, -0.00411427, -0.0140548, -0.0773435, -0.0129435, 0.0321294, -0.0771818, -0.0186908, 0.103196, -0.0446912, -0.023901, 0.179113, 0.0375458, -0.0337928, 0.207735, 0.172925, -0.0533645, 0.100292, 0.32834, -0.25, 0.408544]
@@ -107,7 +105,8 @@ solver = qpsol('solver', 'hpmpc', prob,{"N":N,"nx":[2]*(N+1),"nu":[1]*N,"ng":[0]
 
 # Solve the NLP
 sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
+sol_ref = solver_ref(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
 print sol['x']
-
+print sol_ref['x']
 
 

@@ -29,6 +29,22 @@ using namespace std;
 namespace casadi {
 
 #define DEBUGPRINT(VAR,NN,DIM)\
+  std::cout << "double " #VAR "[] = {";\
+  for (int i=0;i<NN;++i) {\
+    for (int j=0;j<DIM;++j) {\
+      std::cout << get_ptr(m->VAR##s)[i][j]<< ", ";\
+    }\
+  } \
+  std::cout << "}";\
+  {int cnt=0;\
+  std::cout << "double* " #VAR "s[] = {";\
+  for (int i=0;i<NN;++i) {\
+    std::cout << #VAR << "+" << cnt << ",";\
+    cnt+=DIM;\
+  }}\
+  std::cout << "}" << std::endl;
+/**
+#define DEBUGPRINT(VAR,NN,DIM)\
   std::cout << #VAR "= [";\
   for (int i=0;i<NN;++i) {\
     for (int j=0;j<DIM;++j) {\
@@ -43,7 +59,7 @@ namespace casadi {
     std::cout << " ";\
   }\
   std::cout << "]" << std::endl<< std::endl<< std::endl << std::endl;
-  
+  */
   /**std::cout << "]" << std::endl;\
   std::cout << #VAR " [";\
   for (int i=0;i<NN;++i) {\
@@ -238,7 +254,7 @@ namespace casadi {
     for (int k=0;k<N_;++k) offset+=nx[k]*ng[k];
     m->C.resize(offset);m->C.reserve(offset+1);
 
-    offset = nu[0];
+    offset = nu[0]+nx[0];
     for (int k=1;k<N_;++k) offset+=nx[k]+nu[k];
     offset+=nx[N_];
     m->lb.resize(offset);m->lb.reserve(offset+1);
@@ -270,6 +286,7 @@ namespace casadi {
     for (int k=0;k<N_;++k) offset+=ng[k]+nx[k]+nu[k];
     offset+=ng[N_]+nx[N_];
     m->lam.resize(2*offset);m->lam.reserve(2*offset+1);
+    
 
     m->As.resize(N_);
     m->Qs.resize(N_+1);
@@ -278,6 +295,7 @@ namespace casadi {
       m->As[k] = get_ptr(m->A)+offset;
       m->Qs[k] = get_ptr(m->Q)+offset;
       offset+=nx[k]*nx[k];
+
     }
     m->Qs[N_] = get_ptr(m->Q)+offset;
 
@@ -318,6 +336,7 @@ namespace casadi {
     for (int k=0;k<N_;++k) {
       m->qs[k] = get_ptr(m->q)+offset;
       m->bs[k] = get_ptr(m->b)+offset;
+      std::cout <<  "bs offset" << offset << std::endl;
       m->xs[k] = get_ptr(m->x)+offset;
       m->pis[k] = get_ptr(m->pi)+offset;
       offset+=nx[k];
@@ -340,7 +359,7 @@ namespace casadi {
     offset = 0;
     m->lbs[0] = get_ptr(m->lb);
     m->ubs[0] = get_ptr(m->ub);
-    offset = nu[0];
+    offset = nu[0]+nx[0];
     for (int k=1;k<N_;++k) {
       m->lbs[k] = get_ptr(m->lb)+offset;
       m->ubs[k] = get_ptr(m->ub)+offset;
@@ -485,12 +504,12 @@ namespace casadi {
       offset += nx[k] + nu[k];
     }
 
-    /**for (int cc=0; cc<nx[N_]; ++cc) {
+    for (int cc=0; cc<nx[N_]; ++cc) {
       for (int el=colind[offset+cc]; el<colind[offset+cc+1]; ++el) {
         int r = row[el];
         m->Qs[N_][nx[N_]*cc+r-offset] = 0.5*arg[CONIC_H][el];
       }
-    }*/
+    }
 
 
     /* Disassemble LBA/UBA input into:
@@ -519,6 +538,10 @@ namespace casadi {
     */
     std::copy(arg[CONIC_LBX], arg[CONIC_LBX]+m->lb.size(), get_ptr(m->lb));
     std::copy(arg[CONIC_UBX], arg[CONIC_UBX]+m->ub.size(), get_ptr(m->ub));
+    
+    bool checkbounds = std::equal(get_ptr(m->lb)+nu[0], get_ptr(m->lb)+nu[0]+nx[0],
+                                  get_ptr(m->ub)+nu[0]);
+    casadi_assert_message(checkbounds, "HPMPC solver requires equality constraints on the first state.")
 
     /* Disassemble G input into:
        r
@@ -532,8 +555,8 @@ namespace casadi {
       std::copy(arg[CONIC_G]+offset, arg[CONIC_G]+offset+nu[k], m->rs[k]);
       for (int i=0;i<nu[k];++i) m->rs[k][i] = 0.5*m->rs[k][i];
       offset+= nu[k];
-      std::copy(arg[CONIC_G]+offset, arg[CONIC_G]+offset+nx[k], m->qs[k+1]);
-      for (int i=0;i<nx[k];++i) m->qs[k+1][i] = 0.5*m->qs[k+1][i];
+      std::copy(arg[CONIC_G]+offset, arg[CONIC_G]+offset+nx[k], m->qs[k]);
+      for (int i=0;i<nx[k];++i) m->qs[k][i] = 0.5*m->qs[k][i];
       offset+= nx[k];
     }
 
@@ -554,6 +577,7 @@ namespace casadi {
     }
     std::copy(arg[CONIC_X0]+offset, arg[CONIC_X0]+offset+nx[N_], m->xs[N_]);
 
+    std::copy(get_ptr(m->lb)+nu[0], get_ptr(m->lb)+nu[0]+nx[0], m->xs[0]);
 
     /* Disassemble LAM_X0 into
       pi
@@ -580,11 +604,15 @@ namespace casadi {
   
     Sparsity Asp  = Sparsity::dense(nx[0], nx[0]);
     Sparsity Ssp  = Sparsity::dense(nu[0], nx[0]);
+    Sparsity Qsp  = Sparsity::dense(nx[0], nx[0]);
     //Sparsity Csp  = Sparsity::dense(ng[0], nx[0]);
     
     // First entry of b, augment with A*x
     casadi_mv(m->As[0],Asp,get_ptr(m->x),m->bs[0], 0);
+    
+    std::cout << "vec" << m->bs[0][0] << ":" << m->bs[0][1] << std::endl;
     casadi_mv(m->Ss[0],Ssp,get_ptr(m->x),m->rs[0], 0);
+    //casadi_mv(m->Qs[0],Qsp,get_ptr(m->x),m->qs[0], 0);
     //std::transform(m->Cs[0],m->Cs[0]+ng[0]*nx[0],m->Cs[0], std::negate<double>());
     //casadi_mv(m->Cs[0],Csp,m->lgs[0],m->lgs[0], 0);
     //casadi_mv(m->Cs[0],Csp,m->ugs[0],m->ugs[0], 0);
@@ -623,18 +651,18 @@ namespace casadi {
 	  std::cout <<"warm_start= " << warm_start_ << std::endl;
   
     DEBUGPRINT(hidxb,N+1,m->nb[i])  
-    DEBUGPRINT(A,N,nx[i]*nx[i])
-    DEBUGPRINT(B,N,nx[i]*m->nu[i])
-    DEBUGPRINT(C,N,m->ng[i]*nx[i])
+    DEBUGPRINT(A,N,m->nx[i]*m->nx[i])
+    DEBUGPRINT(B,N,m->nx[i]*m->nu[i])
+    DEBUGPRINT(C,N,m->ng[i]*m->nx[i])
     DEBUGPRINT(D,N,m->ng[i]*m->nu[i])
 
     DEBUGPRINT(R,N,m->nu[i]*m->nu[i])
-    DEBUGPRINT(S,N,m->nu[i]*nx[i])
-    DEBUGPRINT(Q,N+1,nx[i]*nx[i])
+    DEBUGPRINT(S,N,m->nu[i]*m->nx[i])
+    DEBUGPRINT(Q,N+1,m->nx[i]*m->nx[i])
 
-    DEBUGPRINT(b,N,nx[i]) 
+    DEBUGPRINT(b,N,m->nx[i]) 
     DEBUGPRINT(r,N,m->nu[i])
-    DEBUGPRINT(q,N+1,nx[i])
+    DEBUGPRINT(q,N+1,m->nx[i])
     
     DEBUGPRINT(lb,N+1,m->nb[i])
     DEBUGPRINT(ub,N+1,m->nb[i])
@@ -642,10 +670,10 @@ namespace casadi {
     DEBUGPRINT(lg,N+1,m->ng[i])
     DEBUGPRINT(ug,N+1,m->ng[i])
 
-    DEBUGPRINT(x,N+1,nx[i])
+    DEBUGPRINT(x,N+1,m->nx[i])
     DEBUGPRINT(u,N+1,m->nu[i])
     
-    DEBUGPRINT(pi,N,nx[i])
+    DEBUGPRINT(pi,N,m->nx[i])
     DEBUGPRINT(lam,N+1,2*(m->nb[i]+m->ng[i]))
 
 
