@@ -125,7 +125,14 @@ namespace casadi {
       }
     }
 
+    casadi_assert(nxs_.size()==N_+1);
+    casadi_assert(nus_.size()==N_);
+    casadi_assert(ngs_.size()==N_+1);
 
+    casadi_assert(nx_ == std::accumulate(nxs_.begin(), nxs_.end(), 0) +
+                         std::accumulate(nus_.begin(), nus_.end(), 0));
+    casadi_assert(na_ == std::accumulate(nxs_.begin()+1, nxs_.end(), 0) +
+                         std::accumulate(ngs_.begin(), ngs_.end(), 0));
     // Load libraries HPMPC and BLASFEO, when applicable
     std::string searchpath;
 
