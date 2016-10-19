@@ -6,7 +6,7 @@ casadi_plugin(Conic hpmpc
   hpmpc_interface.cpp
   hpmpc_interface_meta.cpp)
 
-casadi_plugin_link_libraries(Conic hpmpc ${HPMPC_LIBRARIES} ${HPMPC_LIBRARIES})
+casadi_plugin_link_libraries(Conic hpmpc ${HPMPC_LIBRARIES} ${BLASFEO_LIBRARIES})
 
 if(HPMPC_DLOPEN)
 add_definitions(-DHPMPC_DLOPEN)
@@ -16,4 +16,4 @@ if(BLASFEO_DLOPEN)
 add_definitions(-DBLASFEO_DLOPEN)
 endif()
 
-casadi_plugin_link_libraries(Conic hpmpc ${HPMPC_LIBRARIES} ${HPMPC_LIBRARIES})
+casadi_plugin_link_libraries(Conic hpmpc ${HPMPC_LIBRARIES} ${BLASFEO_LIBRARIES})
